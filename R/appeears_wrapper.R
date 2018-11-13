@@ -14,7 +14,7 @@
 #'
 #' @export
 appeears_start_session <- function(username,password){
-
+  print ('Kyle Version')
   secret <- jsonlite::base64_enc(paste(username, password, sep = ":"))
   response <- httr::POST(paste0(base_url(), "/login"),
                    httr::add_headers("Authorization" = paste("Basic", gsub("\n", "", secret)),
