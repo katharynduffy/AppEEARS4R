@@ -146,6 +146,7 @@ appeears_start_task = function(token, task_name, start_date, end_date, product, 
   
   if (test){
     print (task)
+    return (task)
   }else{
     task = jsonlite::fromJSON(task)
     task = jsonlite::toJSON(task, auto_unbox=TRUE)
@@ -240,4 +241,21 @@ appeears_task_is_done = function(token, task_id){
   code = response$all_headers[[1]]$status
 
   code == 303
+}
+
+
+
+
+#' Cache user tasks into a dataframe
+#'
+#' Cache all tasks under username and save into a data/ directory
+#'
+#' @param token An authentication token associated with the submitted task, as per the appeears_start_session function.
+#' Expects a list with a a variable, 'token'
+#'
+#' @return A dataframe with all tasks from appeears for this user
+#' @export
+#'
+appeears_get_tasks = function(token, cache=FALSE){
+  print ('grabbing user tasks..')
 }

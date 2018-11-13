@@ -1,6 +1,9 @@
 # LocalDataStorage
 data/
 
+# R markdown development files
+dev/
+
 # History files
 .Rhistory
 .Rapp.history
