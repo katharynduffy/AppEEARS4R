@@ -1,4 +1,116 @@
 
+#' Get Data from AppEEARS
+#'
+#' Handles the process from start to finish of requesting data from AppEEARS and downloading the files. This function is merely
+#' a coordinating function for the other subordinate functions available through this package.
+#' Please note that because AppEEARS serves data asynchronously, this function must wait an indeterminate amount of time for the
+#' job submitted to the AppEEARS server to finish and process. If this does not fit your use case, then you must write your own
+#' coordinating function.
+#'
+#' @param username Username with which to login
+#'
+#' @param password Password with which to login
+#' 
+#' @param task_name User specified name to give the task
+#'
+#' @param start_date Used in conjunction with end_date to specify a date range for the search. Should be a string in MM-DD-YYYY
+#' format
+#'
+#' @param end_date Used in conjunction with start_date to specify a date range for the search. Should be a string in MM-DD-YYYY
+#' format
+#'
+#' @param product Name of the data product to specify in the request
+#' A list of available products is available here: https://lpdaacsvc.cr.usgs.gov/appeears/products
+#' Takes a string in the format product_name.version_number
+#'
+#' @param layers layer names to pull from the product as specified in the product parameter. A list of layers
+#' available with each product can be found here: https://lpdaacsvc.cr.usgs.gov/appeears/products
+#' Takes a vecotor of strings, all of which should perfectly match the layer names specified in the above URL.
+#' 
+#' @param type Takes 'polygon' or 'point' as input. Specify if the request is for an area or a series of points.
+#' 
+#' @param points Data frame containing the following columns: lat, long, id, category Used to specify either the boundaries
+#' of a polygone or a series of points depending on the input of the 'type' paramater. lat/long correspond with a series of 
+#' spatial coordinates. id is an arbitrary identifier for each point and category seems to be an arbitrary string required by
+#' AppEEARs but doesn't otherwise do anything, AFAIK.
+#' 
+#' @param base_path Directory to direct file downloads. Defaults to the working path. Paths relative to the working path can be
+#' used with the following noation "./" Be sure to terminate the path with a backslash, e.g. "./my-data-files"
+#' 
+#' @param wait_time integer greater than or equal to 30. Specifies the number of seconds to wait between checks to see if the 
+#' data bundle is ready after submitting a job. Values less than 30 are set to 30 seconds. Defaults to 60 seconds.
+#'
+#' @return Returns a list containing a success code, 1 on success and 0 on failure, along with a response message indicating the
+#' issue if an error occurred
+#'
+#' @export
+appeears_get_data <- function(username, password, task_name, start_date, end_date, product, layers, type, points, base_path="./", wait_time=60){
+  
+  if(wait_time < 30){
+    wait_time <- 30
+  }
+  
+  status <- tryCatch({
+    token <- appeears_start_session(username,password)
+    if(is.null(token$token)){
+      stop("Credential bad")
+    }
+    
+  },error=function(msg){
+    return(c(0,"Credentials invalid"))
+  })
+  
+  if(!is.null(status)){
+    return(status)
+  }
+  
+  status <- tryCatch({
+    task <- appeears_start_task(token,task_name, start_date, end_date, product, layers, type, points)
+    if(is.null(task$task_id)){
+      stop("Invalid task")
+    } 
+    
+    
+  },error=function(msg){
+    return(c(0,task$message))
+  })
+  
+  if(!is.null(status)){
+    return(status)
+  }  
+  
+  
+  
+  while(!appeears_task_is_done(token,task)){
+    Sys.sleep(wait_time)
+  }
+  
+  status <- tryCatch({
+    
+    bundle <- appeears_fetch_bundle(task,token)
+    
+    if(is.null(bundle$files)){
+      stop("Invalid bundle")
+    }
+    appeears_download_bundle_files(task, bundle, base_path)
+    
+    
+  },error=function(msg){
+    return(c(0,
+             paste0("Error downloading/writing files.Task ID: ",task$task_id)
+           ))
+  }
+  )
+  
+  if(!is.null(status)){
+    return(status)
+  }  
+  
+
+  return(c(1,"Successfully downloaded files"))
+  
+}
+
 
 #' Start AppEEARS Session
 #'
@@ -50,6 +162,13 @@ appeears_start_session <- function(username,password){
 #' @param layers layer names to pull from the product as specified in the product parameter. A list of layers
 #' available with each product can be found here: https://lpdaacsvc.cr.usgs.gov/appeears/products
 #' Takes a vecotor of strings, all of which should perfectly match the layer names specified in the above URL.
+#' 
+#' @param type Takes 'polygon' or 'point' as input. Specify if the request is for an area or a series of points.
+#' 
+#' @param points Data frame containing the following columns: lat, long, id, category Used to specify either the boundaries
+#' of a polygone or a series of points depending on the input of the 'type' paramater. lat/long correspond with a series of 
+#' spatial coordinates. id is an arbitrary identifier for each point and category seems to be an arbitrary string required by
+#' AppEEARs but doesn't otherwise do anything, AFAIK.
 #'
 #' @return Returns a list representing the AppEEARS server response. On a valid request, includes a variable
 #' 'task_id' which can be used in further requests to see the status of the task or to retrieve associated bundle.
@@ -132,13 +251,6 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
                   )
     )
 
-#    {
-#      "latitude": 44.97766115516424,
-#      "longitude": -93.26824955642223,
-#      "id": "Minneapolis",
-#      "category": "Urban"
-#    },
-
 
     task<-paste0(task,']
      }
@@ -182,9 +294,22 @@ appeears_fetch_bundle <- function(task_id, token){
   bundle_response
 }
 
-appeears_download_bundle_files <- function(task_id, bundle_id, base_path="./"){
 
-  for (file in bundle_id$files){
+#' Download Bundle Files
+#' 
+#' Takes an AppEEARS bundle object and downloads all the files associated with that bundle to a local directory.
+#' 
+#' @param task_id A task id as per the response given when executing the appeears_start_task function. Expects
+#' a list which includes a variable, 'task_id'.
+#' @param bundle Bundle object obtained from appeears_fetch_bundle function containing a list of all files to download
+#' and other information about the data
+#' @param base_path Directory to direct file downloads. Defaults to the working path. Paths relative to the working path can be
+#' used with the following noation "./" Be sure to terminate the path with a backslash, e.g. "./my-data-files"
+#' 
+#' @export
+appeears_download_bundle_files <- function(task_id, bundle, base_path="./"){
+
+  for (file in bundle$files){
     url <- paste0("https://lpdaacsvc.cr.usgs.gov/appeears/api/bundle/", task_id$task_id, "/",file$file_id)
     path <- paste0(base_path, gsub("/","-",file$file_name))
     download.file(url,destfile=path,method="libcurl", mode="wb")

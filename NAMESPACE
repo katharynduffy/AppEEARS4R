@@ -1,1 +1,7 @@
-exportPattern("^[[:alpha:]]+")
+export(appeears_get_data)
+export(appeears_start_session)
+export(appeears_start_task)
+export(appeears_fetch_bundle)
+export(appeears_download_bundle_files)
+export(appeears_task_status)
+export(appeears_task_is_done)

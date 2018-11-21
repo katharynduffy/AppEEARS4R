@@ -1,8 +1,8 @@
-Package: appeears
+Package: AppEEARS4R
 Type: Package
 Title: AppEEARS API R Wrapper
 Version: 0.1.0
-Author: Who wrote it
+Author: Lee Marsh, Katharyn Duffy, Kyle Enns
 Maintainer: The package maintainer <yourself@somewhere.net>
 Description: Provides a set of wrapper functions with which to interact with the AppEEARS API.
     Further details about the AppEEARS available here: https://lpdaacsvc.cr.usgs.gov/appeears/
