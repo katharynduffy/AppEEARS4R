@@ -125,14 +125,13 @@ appeears_get_data <- function(username, password, task_name, start_date, end_dat
 #' for making further requests
 #'
 #' @export
-appeears_start_session <- function(username,password){
-
-  secret <- jsonlite::base64_enc(paste(username, password, sep = ":"))
-  response <- httr::POST(paste0(base_url(), "/login"),
+appeears_start_session = function(username, password){
+  secret = jsonlite::base64_enc(paste(username, password, sep = ":"))
+  response = httr::POST(paste0(base_url(), "/login"),
                    httr::add_headers("Authorization" = paste("Basic", gsub("\n", "", secret)),
                                "Content-Type" = "application/x-www-form-urlencoded;charset=UTF-8"),
                    body = "grant_type=client_credentials")
-  token_response <- httr::content(response)
+  token_response = httr::content(response)
 
   token_response
 }
@@ -174,17 +173,17 @@ appeears_start_session <- function(username,password){
 #' 'task_id' which can be used in further requests to see the status of the task or to retrieve associated bundle.
 #'
 #' @export
-appeears_start_task <- function(token,task_name,start_date,end_date,product,layers, type, points){
+appeears_start_task = function(token, task_name, start_date, end_date, product, layers, type, points, test=FALSE){
 
 
-  task <- '{
+  task = '{
           "task_type":'
   if(type=="polygon"){
-    task <- paste0(task,'"area",')
+    task = paste0(task,'"area",')
   }else if(type=="point"){
-    task <- paste0(task,'"point",')
+    task = paste0(task,'"point",')
   }
-  task <-paste0(task,
+  task =paste0(task,
                  '"task_name": "',task_name,'",
                  "params":{
                  "dates": [
@@ -194,7 +193,7 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
                  }],
                  "layers": [')
 
-  layers<-lapply(layers, function(x){
+  layers=lapply(layers, function(x){
     paste0('{
       "product": "',product,'",
       "layer": "',x,'"
@@ -202,10 +201,10 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
   })
 
 
-  task<-paste0(task,paste(layers,collapse=",",sep=""),collapse="")
+  task=paste0(task,paste(layers,collapse=",",sep=""),collapse="")
   if(type=="polygon"){
 
-    task<-paste0(task,'],
+    task=paste0(task,'],
       "output":
                  {
                  "format":
@@ -229,7 +228,7 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
                  "coordinates": [
                  [')
 
-    task <- paste0(task,
+    task = paste0(task,
                    paste0(
                      by(points,1:nrow(points),
                         function(row) paste0("[", row$long, ",",row$lat, "]")),
@@ -237,13 +236,13 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
                      )
                    )
 
-    task <- paste0(task,']]}}]}}}')
+    task = paste0(task,']]}}]}}}')
 
   }else if(type == "point"){
-    task<-paste0(task,'],
+    task=paste0(task,'],
     "coordinates": [')
 
-    task <- paste0(task,
+    task = paste0(task,
                   paste0(
                     by(points,1:nrow(points),
                        function(row) paste0('{"latitude":', row$lat, ',"longitude":',row$long, ',"id":"', row$id, '","category":"', row$category, '"}')),
@@ -252,23 +251,27 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
     )
 
 
-    task<-paste0(task,']
+    task=paste0(task,']
      }
     }')
   }
-
-
-  task <- jsonlite::fromJSON(task)
-  task <- jsonlite::toJSON(task, auto_unbox=TRUE)
-
-  auth <- paste("Bearer", token$token)
-
-  response <- httr::POST(paste0(base_url(),"/task"), body = task, encode = "json",
-                   httr::add_headers(Authorization = auth, "Content-Type" = "application/json"))
-
-  task_response <- httr::content(response)
-  task_response
-
+  
+  if (test){
+    print (task)
+    return (task)
+  }else{
+    task = jsonlite::fromJSON(task)
+    task = jsonlite::toJSON(task, auto_unbox=TRUE)
+    
+    auth = paste("Bearer", token$token)
+    
+    response = httr::POST(paste0(base_url(),"/task"), body = task, encode = "json",
+                          httr::add_headers(Authorization = auth, "Content-Type" = "application/json"))
+    
+    task_response = httr::content(response)
+    
+    return (task_response)
+  }
 }
 
 
@@ -287,13 +290,14 @@ appeears_start_task <- function(token,task_name,start_date,end_date,product,laye
 #' all files/file ids associated with the bundle.
 #'
 #' @export
-appeears_fetch_bundle <- function(task_id, token){
-  auth <- paste("Bearer", token$token)
-  response <- httr::GET(paste0(base_url(), "/bundle/", task_id$task_id), httr::add_headers(Authorization = auth))
-  bundle_response <- httr::content(response)
+appeears_fetch_bundle = function(task_id, token){
+  auth = paste("Bearer", token$token)
+  response = httr::GET(paste0(base_url(), "/bundle/", task_id$task_id), httr::add_headers(Authorization = auth))
+  bundle_response = httr::content(response)
   bundle_response
 }
 
+<<<<<<< HEAD
 
 #' Download Bundle Files
 #' 
@@ -312,6 +316,13 @@ appeears_download_bundle_files <- function(task_id, bundle, base_path="./"){
   for (file in bundle$files){
     url <- paste0("https://lpdaacsvc.cr.usgs.gov/appeears/api/bundle/", task_id$task_id, "/",file$file_id)
     path <- paste0(base_path, gsub("/","-",file$file_name))
+=======
+appeears_download_bundle_files = function(task_id, bundle_id, base_path="./"){
+
+  for (file in bundle_id$files){
+    url = paste0("https://lpdaacsvc.cr.usgs.gov/appeears/api/bundle/", task_id$task_id, "/",file$file_id)
+    path = paste0(base_path, gsub("/","-",file$file_name))
+>>>>>>> fc77222d592ed2a56dd6ec34da5b3f7c2a98e6ad
     download.file(url,destfile=path,method="libcurl", mode="wb")
   }
 
@@ -336,10 +347,10 @@ appeears_download_bundle_files <- function(task_id, bundle, base_path="./"){
 #'
 #' @export
 #'
-appeears_task_status <- function (token, task_id){
-  auth <- paste("Bearer", token$token)
-  response <- httr::GET(paste0(base_url(),"/status/", task_id$task_id), httr::add_headers(Authorization = auth))
-  status_response <- httr::content(response)
+appeears_task_status = function (token, task_id){
+  auth = paste("Bearer", token$token)
+  response = httr::GET(paste0(base_url(),"/status/", task_id$task_id), httr::add_headers(Authorization = auth))
+  status_response = httr::content(response)
   status_response
 }
 
@@ -356,11 +367,28 @@ appeears_task_status <- function (token, task_id){
 #' @return A boolean representing whether or not the task is complete.
 #' @export
 #'
-appeears_task_is_done <- function(token, task_id){
-  auth <- paste("Bearer", token$token)
-  response <- httr::GET(paste0(base_url(),"/status/", task_id$task_id), httr::add_headers(Authorization = auth))
+appeears_task_is_done = function(token, task_id){
+  auth = paste("Bearer", token$token)
+  response = httr::GET(paste0(base_url(),"/status/", task_id$task_id), httr::add_headers(Authorization = auth))
 
-  code <- response$all_headers[[1]]$status
+  code = response$all_headers[[1]]$status
 
   code == 303
+}
+
+
+
+
+#' Cache user tasks into a dataframe
+#'
+#' Cache all tasks under username and save into a data/ directory
+#'
+#' @param token An authentication token associated with the submitted task, as per the appeears_start_session function.
+#' Expects a list with a a variable, 'token'
+#'
+#' @return A dataframe with all tasks from appeears for this user
+#' @export
+#'
+appeears_get_tasks = function(token, cache=FALSE){
+  print ('grabbing user tasks..')
 }
